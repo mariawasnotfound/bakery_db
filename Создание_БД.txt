@@ -1,0 +1,305 @@
+-- Создание таблиц, пользовательских типов, перечислений
+DROP TABLE IF EXISTS Order_composition CASCADE;
+DROP TABLE IF EXISTS Branch_product CASCADE;
+DROP TABLE IF EXISTS Product CASCADE;
+DROP TABLE IF EXISTS Product_composition CASCADE;
+DROP TABLE IF EXISTS "Order" CASCADE;
+DROP TABLE IF EXISTS Employee CASCADE;
+DROP TABLE IF EXISTS Customer CASCADE;
+DROP TABLE IF EXISTS Branch CASCADE;
+DROP TABLE IF EXISTS Position CASCADE;
+DROP TABLE IF EXISTS Category CASCADE;
+DROP TABLE IF EXISTS Ingredient CASCADE;
+DROP DOMAIN IF EXISTS price CASCADE;
+DROP TYPE IF EXISTS measure_unit CASCADE;
+
+CREATE TYPE measure_unit AS ENUM ('шт', 'кг', 'г', 'мл');
+
+CREATE DOMAIN price AS DECIMAL(10,2)
+  CONSTRAINT positive_price CHECK (VALUE > 0);
+
+CREATE TABLE IF NOT EXISTS Position (
+    position_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS Branch (
+    branch_id SERIAL PRIMARY KEY,
+    address VARCHAR(100) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS Employee (
+    employee_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100),
+    position INT NOT NULL REFERENCES Position(position_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    branch INT NOT NULL REFERENCES Branch(branch_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    hire_date DATE NOT NULL
+);
+CREATE TABLE IF NOT EXISTS Customer (
+    customer_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100),
+    phone_number VARCHAR(100) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS Category (
+    category_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS Ingredient (
+    ingredient_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    measure_unit measure_unit NOT NULL
+);
+CREATE TABLE IF NOT EXISTS Product (
+    product_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    category INT NOT NULL REFERENCES Category(category_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    measure_unit measure_unit NOT NULL,
+    price price NOT NULL
+);
+CREATE TABLE IF NOT EXISTS Product_composition (
+    composition_id SERIAL PRIMARY KEY,
+    product INT NOT NULL REFERENCES Product(product_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    ingredient INT NOT NULL REFERENCES Ingredient(ingredient_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    ingredient_amount DECIMAL(10,2) NOT NULL CHECK (ingredient_amount > 0)
+);
+CREATE TABLE IF NOT EXISTS Branch_product (
+    branch INT NOT NULL REFERENCES Branch(branch_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    product INT NOT NULL REFERENCES Product(product_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    product_amount DECIMAL(10,2) NOT NULL CHECK (product_amount >= 0),
+    PRIMARY KEY (branch, product)
+);
+CREATE TABLE IF NOT EXISTS "Order" (
+    order_id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    sum price NOT NULL,
+    customer INT NOT NULL REFERENCES Customer(customer_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    employee INT NOT NULL REFERENCES Employee(employee_id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS Order_composition (
+    order_id INT NOT NULL REFERENCES "Order"(order_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    product INT NOT NULL REFERENCES Product(product_id) ON UPDATE CASCADE ON DELETE RESTRICT,
+    product_amount DECIMAL(10,2) NOT NULL CHECK (product_amount > 0),
+    PRIMARY KEY (order_id, product)
+);
+
+-- Тестовые данные
+INSERT INTO Position (name) VALUES 
+('Пекарь'), ('Кондитер'), ('Продавец'), ('Администратор'),('Менеджер');
+INSERT INTO Branch (address) VALUES 
+('пр. Героя России Е.Н. Родионова, д. 6'), ('ул. Университетская Набережная, д. 46'), ('ул. 40-летия Победы, д. 9');
+INSERT INTO Employee (first_name, last_name, middle_name, position, branch, hire_date) VALUES 
+('Мария', 'Седова', 'Михайловна', 4, 1, '2024-01-01'), ('Иван', 'Иванов', 'Иванович', 3, 1, '2024-01-15'), ('Мария', 'Петрова', 'Сергеевна', 3, 2, '2024-03-20'), ('Алексей', 'Сидоров', 'Владимирович', 3, 3, '2024-11-10'), ('Ольга', 'Кузнецова', 'Михайловна', 5, 3, '2024-02-28');
+INSERT INTO Category (name) VALUES 
+('Хлеб'), ('Выпечка'), ('Кондитерские изделия');
+INSERT INTO Ingredient (name, measure_unit) VALUES 
+('Мука', 'кг'), ('Сахар', 'кг'), ('Яйца', 'шт'), ('Молоко', 'мл'), ('Сливки', 'мл'), ('Вода', 'мл'), ('Масло сливочное', 'г'), ('Дрожжи', 'г'), ('Соль', 'г'), ('Ягоды', 'г'), ('Шоколад', 'г'), ('Фруктовый джем', 'г'), ('Ванилин', 'г');
+INSERT INTO Product (name, category, measure_unit, price) VALUES 
+('Хлеб Злаковый', 1, 'шт', 45.00), ('Багет Французский', 1, 'шт', 65.00), ('Эклер пломбирный', 3, 'шт', 85.00), ('Торт "Прага"', 3, 'кг', 1200.00), ('Пирожок с клубникой', 2, 'шт', 97.00), ('Крендель с малиной', 2, 'шт', 120.00);
+INSERT INTO Product_composition (product, ingredient, ingredient_amount) VALUES 
+(1, 1, 0.3), (1, 6, 600.0), (1, 7, 0.05), (1, 8, 0.02),(2, 1, 0.5), (2, 6, 700.0), (2, 7, 0.02), (2, 8, 0.01),(3, 5, 50.0), (3, 4, 300.0), (3, 1, 0.2), (3, 3, 2), (3, 2, 0.1), (3, 7, 200.0),(4, 11, 400.0), (4, 2, 0.1),(4, 7, 0.3), (4, 1, 0.2), (4, 12, 200.0), (5, 1, 0.3), (5, 10, 250.0), (5, 2, 0.15), (5, 3, 2), (5, 7, 200.0), (5, 8, 0.02), (6, 1, 0.34), (6, 10, 150.0), (6, 2, 0.1), (6, 3, 2), (6, 7, 150.0), (6, 8, 50.0);
+INSERT INTO Customer (first_name, last_name, middle_name, phone_number) VALUES 
+('Анна', 'Смирнова', 'Юрьевна', '79161234567'),('Дмитрий', 'Волков', 'Васильевич', '79031234568'),('Екатерина', 'Морозова', 'Павловна', '79261234569');
+INSERT INTO "Order" (date, sum, customer, employee) VALUES 
+('2025-12-01', 195.00, 1, 2),('2025-12-02', 290.00, 2, 3),('2025-12-03', 1200.00, 3, 4),('2025-12-04', 207.00, 1, 2),('2025-12-05', 701.00, 2, 3);
+INSERT INTO Order_composition (order_id, product, product_amount) VALUES  
+(1, 1, 1), (1, 2, 1), (1, 3, 1),(2, 3, 2), (2, 6, 1),(3, 4, 1),(4, 2, 1), (4, 5, 1), (4, 1, 1),(5, 3, 2), (5, 6, 2),(5, 5, 3);
+INSERT INTO Branch_product (branch, product, product_amount) VALUES 
+(1, 1, 20), (1, 2, 15), (1, 3, 10), (1, 4, 5), (1, 5, 8), (1, 6, 12), (2, 1, 25), (2, 2, 18), (2, 3, 12), (2, 4, 3), (2, 5, 6), (2, 6, 10),(3, 1, 30), (3, 2, 20), (3, 3, 15), (3, 4, 4), (3, 5, 10), (3, 6, 5);
+
+-- Функция 1
+CREATE OR REPLACE FUNCTION get_revenue_period(
+    start_date DATE, 
+    end_date DATE
+) RETURNS DECIMAL(10,2) AS $$
+DECLARE
+    total_revenue DECIMAL(10,2);
+BEGIN
+    SELECT SUM(o.sum)
+    INTO total_revenue
+    FROM "Order" o
+    WHERE o.date BETWEEN start_date AND end_date;
+    RETURN COALESCE(total_revenue, 0);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция 2
+CREATE OR REPLACE FUNCTION check_product_availability(
+    p_order_id INT,
+    p_product_id INT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    employee_branch INT;
+    available_amount DECIMAL(10,2);
+    ordered_amount DECIMAL(10,2);
+BEGIN
+    SELECT e.branch INTO employee_branch
+    FROM "Order" o
+    JOIN Employee e ON o.employee = e.employee_id
+    WHERE o.order_id = p_order_id;
+    SELECT COALESCE(bp.product_amount, 0) INTO available_amount
+    FROM Branch_product bp
+    WHERE bp.product = p_product_id AND bp.branch = employee_branch;
+    SELECT COALESCE(oc.product_amount, 0) INTO ordered_amount
+    FROM Order_composition oc
+    WHERE oc.order_id = p_order_id AND oc.product = p_product_id;
+    RETURN available_amount >= ordered_amount;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Функция 3
+CREATE OR REPLACE FUNCTION get_popular_products(
+    start_date DATE DEFAULT NULL,
+    end_date DATE DEFAULT NULL,
+    top_count INT DEFAULT 10
+) RETURNS TABLE (
+    product_id INT,
+    product_name VARCHAR(100),
+    total_sold DECIMAL(10,2),
+    total_revenue DECIMAL(10,2)
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        p.product_id,
+        p.name as product_name,
+        SUM(oc.product_amount) as total_sold,
+        SUM(oc.product_amount * p.price) as total_revenue
+    FROM Order_composition oc
+    JOIN Product p ON oc.product = p.product_id
+    JOIN "Order" o ON oc.order_id = o.order_id
+    WHERE (start_date IS NULL OR o.date >= start_date)
+      AND (end_date IS NULL OR o.date <= end_date)
+    GROUP BY p.product_id, p.name
+    ORDER BY total_sold DESC
+    LIMIT top_count;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Триггер 1
+CREATE OR REPLACE FUNCTION update_stock_on_order()
+RETURNS TRIGGER AS $$
+DECLARE
+    employee_branch INT;
+BEGIN
+    SELECT e.branch INTO employee_branch 
+    FROM "Order" o
+    JOIN Employee e ON o.employee = e.employee_id
+    WHERE o.order_id = NEW.order_id;
+    UPDATE Branch_product 
+    SET product_amount = product_amount - NEW.product_amount
+    WHERE product = NEW.product AND branch = employee_branch; 
+    RETURN NEW;
+END; 
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER tr_update_stock_on_order
+AFTER INSERT ON Order_composition
+FOR EACH ROW
+EXECUTE FUNCTION update_stock_on_order();
+
+-- Триггер 2
+CREATE OR REPLACE FUNCTION update_order_sum()
+RETURNS TRIGGER AS $$
+DECLARE
+    new_sum DECIMAL(10,2);
+BEGIN
+    SELECT SUM(oc.product_amount * p.price)
+    INTO new_sum
+    FROM Order_composition oc
+    JOIN Product p ON oc.product = p.product_id
+    WHERE oc.order_id = (
+        CASE 
+            WHEN TG_OP = 'DELETE' THEN OLD.order_id
+            ELSE NEW.order_id
+        END
+    );
+    UPDATE "Order" 
+    SET sum = COALESCE(new_sum, 0)
+    WHERE order_id = (
+        CASE 
+            WHEN TG_OP = 'DELETE' THEN OLD.order_id
+            ELSE NEW.order_id
+        END
+    );
+    RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER tr_update_order_sum
+AFTER INSERT OR UPDATE OR DELETE ON Order_composition
+FOR EACH ROW
+EXECUTE FUNCTION update_order_sum();
+
+-- Триггер 3
+CREATE OR REPLACE FUNCTION check_stock_availability()
+RETURNS TRIGGER AS $$
+DECLARE
+    employee_branch INT;
+    available_amount DECIMAL(10,2);
+BEGIN
+    SELECT e.branch INTO employee_branch 
+    FROM "Order" o
+    JOIN Employee e ON o.employee = e.employee_id
+    WHERE o.order_id = NEW.order_id;
+    SELECT COALESCE(bp.product_amount, 0) INTO available_amount
+    FROM Branch_product bp
+    WHERE bp.product = NEW.product AND bp.branch = employee_branch;
+    IF available_amount < NEW.product_amount THEN
+        RAISE EXCEPTION 'Недостаточно товара ID:% в филиале. Доступно: %, требуется: %', 
+            NEW.product, available_amount, NEW.product_amount;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER tr_check_stock_availability
+BEFORE INSERT ON Order_composition
+FOR EACH ROW
+EXECUTE FUNCTION check_stock_availability();
+
+-- Роли
+DROP ROLE IF EXISTS client_role;
+DROP ROLE IF EXISTS seller_role;
+DROP ROLE IF EXISTS manager_role;
+DROP ROLE IF EXISTS admin_role;
+CREATE ROLE client_role LOGIN PASSWORD "client123";
+CREATE ROLE seller_role LOGIN PASSWORD "seller123";
+CREATE ROLE manager_role LOGIN PASSWORD "manager123";
+CREATE ROLE admin_role LOGIN PASSWORD "admin123";
+
+-- Права: client_role
+GRANT SELECT ON TABLE
+Product, Branch_product, Branch, Category 
+TO client_role;
+
+-- seller_role
+GRANT SELECT ON TABLE 
+Product, Category, Branch_product, Branch, Employee, Position
+TO seller_role;
+GRANT SELECT, INSERT ON TABLE 
+Customer, "Order", Order_composition 
+TO seller_role;
+GRANT UPDATE ON TABLE 
+"Order", Branch_product
+TO seller_role;
+GRANT USAGE ON SEQUENCE 
+Customer_customer_id_seq, "Order_order_id_seq"
+TO seller_role;
+
+-- manager_role
+GRANT SELECT ON TABLE 
+Branch
+TO manager_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE 
+Customer, Order_composition, "Order", Branch_product 
+TO manager_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE 
+Category, Product, Product_composition, Ingredient, Employee, Position 
+TO manager_role;
+GRANT USAGE ON SEQUENCE 
+    Customer_customer_id_seq, "Order_order_id_seq",     Product_product_id_seq, Category_category_id_seq,     Branch_branch_id_seq, Employee_employee_id_seq, Position_position_id_seq, Ingredient_ingredient_id_seq, Product_composition_composition_id_seq
+TO manager_role;
+
+-- admin_role
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_role;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin_role;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO admin_role;
